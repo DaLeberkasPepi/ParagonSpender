@@ -4,16 +4,21 @@ SendMode Input  ; Recommended for new scripts due to its superior speed and reli
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #Persistent
 #IfWinActive, Diablo III
+#SingleInstance force
 SetDefaultMouseSpeed, 4
 CoordMode, Pixel, Client
 CoordMode, Mouse, Client
 
-global ParagonPoints1 := [-1, 0, 50, 0]	; -1 = infinite points, [Mainstat, Vitality, Movement, Ressource]
-, ParagonPoints2 := [0, -1, 50, 0]
-, ParagonPoints3 := [0, 0, 50, 50]
-, D3ScreenResolution
-, ScreenMode
-	
+global ParagonPoints1 := [0, 0, 0, 0]	; -1 = infinite points, [Mainstat, Vitality, Movement, Ressource]
+,ParagonPoints2 := [0, 0, 0, 0]
+,ParagonPoints3 := [0, 0, 0, 0]
+,D3ScreenResolution
+,ScreenMode
+,NativeDiabloHeight := 1440
+,NativeDiabloWidth := 3440
+,LowParaPause
+
+
 Numpad1::
 ParagonPointSpender(ParagonPoints1[1], ParagonPoints1[2], ParagonPoints1[3], ParagonPoints1[4])
 Return
@@ -28,19 +33,19 @@ Return
 
 ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPoints, ByRef RessourcePoints)
 {
-	WinGetPos, , , DiabloWidth, DiabloHeight, Diablo III
+	GetClientWindowInfo("Diablo III", DiabloWidth, DiabloHeight, DiabloX, DiabloY)
+	
 	If (D3ScreenResolution != DiabloWidth*DiabloHeight)
-	{	   
-		global Mainstat := [2140, 446]
-		, Vitality := [2140, 570]
-		, Movement := [2140, 690]
-		, Ressource := [2140, 815]		
-		, ParagonMenu := [2323, 1138, 0x000000]
-		, ParagonReset := [1720, 980]
-		, ParagonAccept := [1550, 1090]
-		, ParagonCore := [1250, 140]
+	{
+		global Mainstat := [2140, 446, 1]
+		, Vitality := [2140, 570, 1]
+		, Movement := [2140, 690, 1]
+		, Ressource := [2140, 815, 1]
+		, ParagonMenu := [2323, 1138, 1, 0x000000]
+		, ParagonReset := [1720, 980, 1]
+		, ParagonAccept := [1550, 1090, 1]
+		, ParagonCore := [1250, 140, 1]
 		
-		ScreenMode := isWindowFullScreen("Diablo III")
 		ConvertCoordinates(Mainstat)
 		ConvertCoordinates(Vitality)
 		ConvertCoordinates(Ressource)
@@ -57,15 +62,18 @@ ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPo
 	MouseGetPos x, y 
 	First:
 	PixelGetColor, ParagonMenuOpen, ParagonMenu[1], ParagonMenu[2]
-	If (ParagonMenuOpen = ParagonMenu[3])
+	If (ParagonMenuOpen = ParagonMenu[4])
 	{
 		MouseClick, Left, ParagonCore[1], ParagonCore[2]
 		MouseClick, Left, ParagonReset[1], ParagonReset[2]
-		Sleep, 150
-		ParagonClicker(MovementPoints, Movement)
-		ParagonClicker(RessourcePoints, Ressource)
+		Sleep, 80
+		ParagonClicker(MovementPoints, Movement, "Limited")
+		ParagonClicker(RessourcePoints, Ressource, "Limited")
 		ParagonClicker(VitalityPoints, Vitality)
 		ParagonClicker(MainstatPoints, Mainstat)
+		If (LowParaPause <= 2)
+			Sleep, 20
+		LowParaPause := 0
 		MouseClick, Left, ParagonAccept[1], ParagonAccept[2]
 	}
 	Else 
@@ -75,27 +83,44 @@ ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPo
 	Return
 }
 
-ParagonClicker(ByRef Points, ByRef Position)
+ParagonClicker(ByRef Points, ByRef Position, Type := "Default")
 {
 	If (Points != 0)
 	{
-		If (Points = -1)
+		++LowParaPause 
+		If (Points == -1)
 		{
 			Start:
 			Send, {Ctrl Down}
-			MouseClick, Left, Position[1], Position[2], 40
+			MouseClick, Left, Position[1], Position[2], 50
 			Send, {Ctrl Up}
 			PixelSearch, , , Position[1], Position[2], Position[1], Position[2], 0x4AABE4, 10
 			If (ErrorLevel = 0)
 				GoTo, Start
-		}
+		}			
 		Else
-		{ 
-			StringLeft, Points10, Points, 1
-			StringRight, Points1, Points, 1
-			Send, {Shift Down}
-			MouseClick, Left, Position[1], Position[2], Points10
-			Send, {Shift Up}
+		{
+			If (Points >= 50) && (Type == "Limited")
+			{
+				Send, {Ctrl Down}
+				MouseClick, Left, Position[1], Position[2]
+				Send, {Ctrl Up}
+			}
+ 			Points100 := Floor(Points/100)
+			Points10 := Floor((Points-Points100*100)/10)
+			Points1 := Floor(Points-Points100*100-Points10*10)
+			If (Points100 >= 1)
+			{
+				Send, {Ctrl Down}
+				MouseClick, Left, Position[1], Position[2], Points100
+				Send, {Ctrl Up}
+			}
+			If (Points10 >= 1)
+			{
+				Send, {Shift Down}
+				MouseClick, Left, Position[1], Position[2], Points10
+				Send, {Shift Up}
+			}
 			MouseClick, Left, Position[1], Position[2], Points1
 		}
 	}
@@ -103,31 +128,36 @@ ParagonClicker(ByRef Points, ByRef Position)
 
 ConvertCoordinates(ByRef Array)
 {
-	WinGetPos, , , DiabloWidth, DiabloHeight, Diablo III
-	D3ScreenResolution := DiabloWidth*DiabloHeight
- 	
- 	If (ScreenMode == false)
- 	{
-		DiabloWidth := DiabloWidth-16
-		DiabloHeight := DiabloHeight-39
-	}
+	GetClientWindowInfo("Diablo III", DiabloWidth, DiabloHeight, DiabloX, DiabloY)
 	
-  Array[1] := Round(Array[1]*DiabloHeight/1440+(DiabloWidth-3440*DiabloHeight/1440)/2, 0)
-	Array[2] := Round(Array[2]*(DiabloHeight/1440), 0)
+	D3ScreenResolution := DiabloWidth*DiabloHeight
+	
+	Position := Array[3]
+
+	;Pixel is always relative to the middle of the Diablo III window
+	If (Position == 1)
+  	Array[1] := Round(Array[1]*DiabloHeight/NativeDiabloHeight+(DiabloWidth-NativeDiabloWidth*DiabloHeight/NativeDiabloHeight)/2, 0)
+
+	;Pixel is always relative to the left side of the Diablo III window or just relative to the Diablo III windowheight
+	If Else (Position == 2 || Position == 4)
+		Array[1] := Round(Array[1]*(DiabloHeight/NativeDiabloHeight), 0)
+
+	;Pixel is always relative to the right side of the Diablo III window
+	If Else (Position == 3)
+		Array[1] := Round(DiabloWidth-(NativeDiabloWidth-Array[1])*DiabloHeight/NativeDiabloHeight, 0)
+
+	Array[2] := Round(Array[2]*(DiabloHeight/NativeDiabloHeight), 0)
 }
 
-isWindowFullScreen(WinID)
+GetClientWindowInfo(ClientWindow, ByRef ClientWidth, ByRef ClientHeight, ByRef ClientX, ByRef ClientY)
 {
-   ;checks if the specified window is full screen
-	
-	winID := WinExist( winTitle )
-	If ( !winID )
-		Return false
+	hwnd := WinExist(ClientWindow)
+	VarSetCapacity(rc, 16)
+	DllCall("GetClientRect", "uint", hwnd, "uint", &rc)
+	ClientWidth := NumGet(rc, 8, "int")
+	ClientHeight := NumGet(rc, 12, "int")
 
-	WinGet style, Style, ahk_id %WinID%
-	WinGetPos ,,,winW,winH, %winTitle%
-	; 0x800000 is WS_BORDER.
-	; 0x20000000 is WS_MINIMIZE.
-	; no border and not minimized
-	Return ((style & 0x20800000) or winH < A_ScreenHeight or winW < A_ScreenWidth) ? false : true
+	WinGetPos, WindowX, WindowY, WindowWidth, WindowHeight, %ClientWindow%
+	ClientX := Floor(WindowX + (WindowWidth - ClientWidth) / 2)
+	ClientY := Floor(WindowY + (WindowHeight - ClientHeight - (WindowWidth - ClientWidth) / 2))
 }
