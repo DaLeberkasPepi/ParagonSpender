@@ -1,13 +1,13 @@
 ;========================================================================
 ;
-; ParagonSpender v!.0.0
+; ParagonSpender v1.0.1
 ;
 ; spends Paragon with 3 possible Paragon Setups
 ;
 ; Created by DaLeberkasPepi
 ;   https://github.com/DaLeberkasPepi
 ;
-; Last Update: 2018-03-03 24:00 GMT+1
+; Last Update: 2018-03-04 12:00 GMT+1
 ;
 ;========================================================================
 
@@ -18,25 +18,28 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #Persistent
 #IfWinActive, ahk_class D3 Main Window Class
 #SingleInstance force
-SetDefaultMouseSpeed, 4
+SetDefaultMouseSpeed, 5
 CoordMode, Pixel, Client
 CoordMode, Mouse, Client
 
 global D3ScreenResolution
 ,NativeDiabloHeight := 1440
 ,NativeDiabloWidth := 3440
-,#ctrls = 3
+,#ctrls := 3
+,Ping
 
 IfNotExist, Hotkeys.ini
 	FileAppend,
 (
 [Settings]
+Ping=100
 [Hotkeys]
 1=Numpad1
 2=Numpad2
 3=Numpad3
 ), Hotkeys.ini
 
+IniRead, Ping, Hotkeys.ini, Settings, Ping
 Loop % #ctrls 
 {
 	GUI, Add, Text, xm y+10, Hotkey for #%A_Index% Paragon Setup:
@@ -64,11 +67,13 @@ Loop % #ctrls
 	GUI, Add, Edit, x+5 w33 Limit4 Number gSubmit vParagonMovement%A_Index%, % ParagonMovement%A_Index%
 	GUI, Add, Text, x+5, Res:
 	GUI, Add, Edit, x+5 w33 Limit4 Number gSubmit vParagonRessource%A_Index%, % ParagonRessource%A_Index%
-} 
+}   
+GUI, Add, Text, xm, Ping [ms]:
+GUI, Add, Edit, x+5 w33 Limit3 Number gSubmit vPing, %Ping%
 Return
 
 ~F1::
-	GUI, Show , ,ParagonSpender v1.0.0 Hotkeys
+	GUI, Show , ,ParagonSpender v1.0.1 Hotkeys
 Return
 
 GuiClose:
@@ -78,6 +83,8 @@ GuiClose:
 Return
 
 Submit:
+	GUIControlGet, Ping
+	IniWrite, %Ping%, Hotkeys.ini, Settings, Ping
 	Loop % #ctrls 
 	{
 		GUIControlGet, ParagonMain%A_Index%
@@ -154,9 +161,9 @@ ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPo
 	{
 		MouseClick, Left, ParagonCore[1], ParagonCore[2]
 		MouseClick, Left, ParagonReset[1], ParagonReset[2]
-		Sleep, 80
-		ParagonClicker(MovementPoints, Movement)
-		ParagonClicker(RessourcePoints, Ressource)
+		Sleep % Ping + 50
+		ParagonClicker(MovementPoints, Movement, "Limited")
+		ParagonClicker(RessourcePoints, Ressource, "Limited")
 		
 		If (MainstatPoints > VitalityPoints)
 		{
@@ -170,7 +177,7 @@ ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPo
 			ParagonClicker(MainstatPoints, Mainstat)
 		}
 		
-		TimeBuffer := 400 - (A_TickCount - StartTime)
+		TimeBuffer := Ping + 450 - (A_TickCount - StartTime)
 		If (TimeBuffer > 0)
 			Sleep % TimeBuffer
 		
@@ -183,7 +190,7 @@ ParagonPointSpender(ByRef MainstatPoints, ByRef VitalityPoints, ByRef MovementPo
 	Return
 }
 
-ParagonClicker(ByRef Points, ByRef Position)
+ParagonClicker(ByRef Points, ByRef Position, Type := "Default")
 {
 	If (Points != 0)
 	{ 
@@ -191,7 +198,7 @@ ParagonClicker(ByRef Points, ByRef Position)
 		{
 			Start:
 			Send, {Ctrl Down}
-			MouseClick, Left, Position[1], Position[2], 50
+			MouseClick, Left, Position[1], Position[2], 70
 			Send, {Ctrl Up}
 			PixelSearch, , , Position[1], Position[2], Position[1], Position[2], 0x4AABE4, 10
 			If (ErrorLevel = 0)
@@ -199,7 +206,7 @@ ParagonClicker(ByRef Points, ByRef Position)
 		}			
 		Else
 		{
-			If (Points >= 50)
+			If (Points >= 50) && (Type == "Limited")
 			{
 				Send, {Ctrl Down}
 				MouseClick, Left, Position[1], Position[2]
@@ -219,8 +226,11 @@ ParagonClicker(ByRef Points, ByRef Position)
 				Send, {Shift Down}
 				MouseClick, Left, Position[1], Position[2], Points10
 				Send, {Shift Up}
+			} 
+			If (Points1 >= 1)
+			{
+				MouseClick, Left, Position[1], Position[2], Points1
 			}
-			MouseClick, Left, Position[1], Position[2], Points1
 		}
 	}
 }
