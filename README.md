@@ -1,4 +1,4 @@
-# ParagonSpender
+# ParagonSpender (deprecated!!!, not supported anymore)
 Paragon Points Spender for Diablo III
 
 ![alt text](https://i.imgur.com/cyEWp3B.png)
